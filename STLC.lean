@@ -30,7 +30,7 @@ notation:max ctx "[" x " ↦ " ty  "]" => Ctx.set ctx x ty
 
 -- Shifts all variables' indices up by 1.
 def Ctx.shift (ctx : Ctx) : Ctx
-  | 0 => none
+  | 0     => none
   | x + 1 => ctx x
 
 prefix:max "↥" => Ctx.shift
@@ -166,9 +166,10 @@ theorem weakening (ht : ctx ⊢ t ⋮ ty) (hx : ctx x = none) : ctx[x ↦ ty'] �
 theorem shift_up_preservation (h : ctx ⊢ t ⋮ ty) : ↥ctx ⊢ ↥t ⋮ ty := by
   induction h
   case var h => exact .var h
-  case abs ht hi =>
-    constructor
-    simp
+  case abs ty₁ ctx t ty₂ ht hi =>
+    refine .abs ?_
+    rw [←Ctx.shift_set_comm] at hi
+    simp at *
     sorry
   case app hi₁ hi₂ => exact .app hi₁ hi₂
 
@@ -192,17 +193,10 @@ theorem subst_preservation
   case var hc =>
     simp [Term.subst]
     split <;> simp [Ctx.set] at hc
-    case inl h =>
-      simp [h] at hc
-      subst hc
-      assumption
-    case inr h =>
-      simp [h] at hc
-      exact .var hc
+    case inl h => simp_all
+    case inr h => exact .var <| by simp_all
   case abs ty₁ _ _ _ hi =>
-    apply Types.abs
-    specialize @hi (x + 1) (↥ctx)[0 ↦ ty₁] ↥s
-    apply hi
+    refine Types.abs <| hi ?_ ?_
     · exact weakening (shift_up_preservation hs) Ctx.shift_zero
     · rw [←ctx.shift_set_comm, (↥ctx).set_ne_comm 0 (x + 1)]
   case app hi₁ hi₂ => exact .app (hi₁ hs rfl) (hi₂ hs rfl)
