@@ -41,7 +41,7 @@ inductive Dir where
 
 def Dir.move (n : Nat) : Dir → Nat
   | up   => n + 1
-  | down => n - 1 
+  | down => n - 1
 
 -- The shift of a term above cutoff c.
 def Term.shift (dir : Dir) (c : Nat) : Term → Term
@@ -63,8 +63,12 @@ inductive Eval : Term → Term → Prop
   | app₁ (t₂ : Term) : Eval t₁ t₁' → Eval (.app t₁ t₂) (.app t₁' t₂)
   | app₂ (v₁ : Value) : Eval t₂ t₂' → Eval (.app v₁ t₂) (.app v₁ t₂')
   | beta (ty : Ty) (t : Term) (v : Value) : Eval (.app (.abs ty t) v) ↧(t[0 ↦ ↥v])
- 
-infixr:50 " ⇒ " => Eval 
+
+infixr:50 " ⇒ " => Eval
+
+theorem Eval.determinate (h₁ : t ⇒ t₁) (h₂ : t ⇒ t₂) : t₁ = t₂ := by
+  induction h₁ generalizing t₂
+  all_goals sorry -- Page 37
 
 inductive Types : Ctx → Term → Ty → Prop
   | var : (ctx x = some ty) → Types ctx (.var x) ty
@@ -77,11 +81,11 @@ notation      "⊢ " t " ⋮ " ty => ∅ ⊢ t ⋮ ty
 theorem inversion_var : (ctx ⊢ .var x ⋮ ty) → ctx x = ty
   | .var h => h
 
-theorem inversion_abs : 
+theorem inversion_abs :
     (ctx ⊢ .abs ty₁ t ⋮ ty) → ∃ ty₂, (ty = .arrow ty₁ ty₂) ∧ (↥ctx)[0 ↦ ty₁] ⊢ t ⋮ ty₂
-  | .abs h => ⟨_, rfl, h⟩  
+  | .abs h => ⟨_, rfl, h⟩
 
-theorem inversion_app : 
+theorem inversion_app :
     (ctx ⊢ .app t₁ t₂ ⋮ ty₂) → ∃ ty₁, (ctx ⊢ t₁ ⋮ .arrow ty₁ ty₂) ∧ (ctx ⊢ t₂ ⋮ ty₁)
   | .app h₁ h₂ => ⟨_, h₁, h₂⟩
 
@@ -107,42 +111,42 @@ theorem progress (h : ⊢ t ⋮ ty) : (∃ v : Value, t = v) ∨ (∃ t', t ⇒ 
   case var h => injection h
   case abs ty₁ t₁ _ _ _ => exact .inl ⟨⟨_, _⟩, rfl, rfl⟩
   case app hi₁ hi₂ =>
-    cases hi₁ <;> apply Or.inr
+    cases hi₁
     case inr h =>
       have ⟨_, h⟩ := h
       exact ⟨_, .app₁ _ h⟩
     case inl ty₁ _ _ ht₁ _ h₁ =>
-      cases hi₂ 
+      cases hi₂
       case inl h₂ =>
-        have ⟨v₁, hv₁⟩ := h₁ 
+        have ⟨v₁, hv₁⟩ := h₁
         have ⟨v₂, hv₂⟩ := h₂
         subst hv₁ hv₂
         have ⟨body₁, hv₁⟩ := canonical_forms ht₁
         subst hv₁
-        exact ⟨_, .beta ..⟩ 
+        exact ⟨_, .beta ..⟩
       case inr h₂ =>
         have ⟨_, h₁⟩ := h₁
         have ⟨_, h₂⟩ := h₂
         subst h₁
         exact ⟨_, .app₂ _ h₂⟩
-  
-theorem Ctx.shift_zero : ↥ctx 0 = none := 
+
+theorem Ctx.shift_zero : ↥ctx 0 = none :=
   rfl
 
-theorem Ctx.shift_succ (ctx x) : ↥ctx (x + 1) = ctx x := 
+theorem Ctx.shift_succ (ctx x) : ↥ctx (x + 1) = ctx x :=
   rfl
 
-theorem Ctx.set_get_ne (ctx x y) (h : x ≠ y := by intro; contradiction) : 
+theorem Ctx.set_get_ne (ctx x y) (h : x ≠ y := by intro; contradiction) :
     ctx[x ↦ ty] y = ctx y := by
   simp [set, h.symm]
 
-theorem Ctx.set_ne_comm (ctx : Ctx) (x₁ x₂) (h : x₁ ≠ x₂ := by intro; contradiction) : 
+theorem Ctx.set_ne_comm (ctx : Ctx) (x₁ x₂) (h : x₁ ≠ x₂ := by intro; contradiction) :
     ctx[x₁ ↦ ty₁][x₂ ↦ ty₂] = ctx[x₂ ↦ ty₂][x₁ ↦ ty₁] := by
   funext
   simp [set]
   split <;> split <;> simp_all
 
-theorem Ctx.shift_set_comm (ctx : Ctx) (x : Nat) : (↥ctx)[x + 1 ↦ ty] = ↥(ctx[x ↦ ty]) := by 
+theorem Ctx.shift_set_comm (ctx : Ctx) (x : Nat) : (↥ctx)[x + 1 ↦ ty] = ↥(ctx[x ↦ ty]) := by
   funext
   simp [shift, set]
   split
@@ -151,7 +155,7 @@ theorem Ctx.shift_set_comm (ctx : Ctx) (x : Nat) : (↥ctx)[x + 1 ↦ ty] = ↥(
 
 theorem weakening (ht : ctx ⊢ t ⋮ ty) (hx : ctx x = none) : ctx[x ↦ ty'] ⊢ t ⋮ ty := by
   induction ht generalizing x
-  case var ctx _ y hy => 
+  case var ctx _ y hy =>
     refine .var (hy ▸ ctx.set_get_ne _ _ ?_)
     intro h
     injection (h ▸ hx) ▸ hy
@@ -181,11 +185,11 @@ theorem shift_down_preservation (h : ↥ctx ⊢ t ⋮ ty) : ctx ⊢ ↧t ⋮ ty 
     simp_all [Term.shift, Ctx.shift, Dir.move]
     split <;> try split at h <;> try contradiction
     exact .var h
-  case abs => 
+  case abs =>
     sorry
   case app hi₁ hi₂ => exact .app hi₁ hi₂
 
-theorem subst_preservation 
+theorem subst_preservation
     (ht : ctx[x ↦ ty'] ⊢ t ⋮ ty) (hs : ctx ⊢ s ⋮ ty') : ctx ⊢ t[x ↦ s] ⋮ ty := by
   generalize hc : ctx[x ↦ ty'] = ctx'
   rw [hc] at ht
@@ -205,8 +209,8 @@ theorem preservation (ht : ctx ⊢ t ⋮ ty) (he : t ⇒ t') : ctx ⊢ t' ⋮ ty
   induction ht generalizing t' <;> cases he
   case app.app₁ _ ht hi _ _ he => exact .app (hi he) ht
   case app.app₂ hi _ _ ht _ he => exact .app ht (hi he)
-  case app.beta ht₁ _ ht₂ _ => 
-    simp at * 
+  case app.beta ht₁ _ ht₂ _ =>
+    simp at *
     have ⟨_, h, hc⟩ := inversion_abs ht₁
     injection h with h₁ h₂
     subst h₁ h₂
@@ -223,19 +227,49 @@ infixr:50 " ⇒* " => Eval.RTC
 
 -- Note: This is also called "t halts" in Types and Programming Languages.
 inductive Normalizable (t : Term) : Prop where
-  | intro (eval : t ⇒* t') (nf : NormalForm t₁)
+  | intro (eval : t ⇒* t') (nf : NormalForm t')
 
--- TODO:
---
--- inductive Saturated : Ty → Term → Prop
---   | arrow : Normalizable t → (∀ s, Saturated ty₁ s → Saturated ty₂ (.app t s)) → Saturated (.arrow ty₁ ty₂) t
--- 
--- theorem normalization (h : ⊢ t ⋮ ty) : Normalizable t :=
---   sorry
+theorem Normalizable.eval₁ : (Normalizable t₁) → (t₁ ⇒ t₂) → Normalizable t₂
+  | .intro (.refl _)      nf, h => nf ⟨_, h⟩ |>.elim
+  | .intro (.trans h₁ h₂) nf, h => ⟨h.determinate h₁ ▸ h₂, nf⟩
+
+theorem Normalizable.eval₂ : (Normalizable t₂) → (t₁ ⇒ t₂) → Normalizable t₁
+  | .intro eval nf, e => ⟨.trans e eval, nf⟩
+
+def Saturated : Ty → Term → Prop
+  | ty@(.arrow ty₁ ty₂), t =>
+    (∅ ⊢ t ⋮ ty) ∧ (Normalizable t) ∧ (∀ s, Saturated ty₁ s → Saturated ty₂ (.app t s))
+
+theorem Saturated.type : {ty : Ty} → (Saturated ty t) → (∅ ⊢ t ⋮ ty)
+  | .arrow .., ⟨h, _, _⟩ => h
+
+theorem Saturated.normalizable : {ty : Ty} → (Saturated ty t) → Normalizable t
+  | .arrow .., ⟨_, h, _⟩ => h
+
+theorem Saturated.app :
+    (Saturated (.arrow ty₁ ty₂) t) → (∀ s, Saturated ty₁ s → Saturated ty₂ (.app t s))
+  | ⟨_, _, h⟩ => h
+
+theorem Saturated.eval (ht : ⊢ t₁ ⋮ ty) (he : t₁ ⇒ t₂) : Saturated ty t₁ ↔ Saturated ty t₂ := by
+  induction ty generalizing t₁ t₂
+  case arrow ty₁ ty₂ _ hi₂ =>
+    constructor <;> intro h
+    case mp =>
+      refine ⟨?_, ?_, ?_⟩
+      · exact preservation ht he
+      · exact h.normalizable.eval₁ he
+      · intro s hs; exact hi₂ (ht.app hs.type) (he.app₁ s) |>.mp (h.app s hs)
+    case mpr =>
+      refine ⟨ht, ?_, ?_⟩
+      · exact h.normalizable.eval₂ he
+      · intro s hs; exact hi₂ (ht.app hs.type) (he.app₁ s) |>.mpr (h.app s hs)
+
+theorem normalization (h : ⊢ t ⋮ ty) : Normalizable t :=
+  sorry
 
 def type (ctx : Ctx) : Term → Option Ty
   | .var x     => ctx x
-  | .abs ty t  => return .arrow ty (← type (↥ctx)[0 ↦ ty] t) 
+  | .abs ty t  => return .arrow ty (← type (↥ctx)[0 ↦ ty] t)
   | .app t₁ t₂ => do
     let some (.arrow ty₁ ty₂) := type ctx t₁ | none
     if ty₁ = (← type ctx t₂) then ty₂ else none
@@ -244,7 +278,7 @@ theorem type_correct : (type ctx t = some ty) ↔ (ctx ⊢ t ⋮ ty) where
   mp h := by
     induction t generalizing ty ctx <;> simp [type, bind, Option.bind] at h
     case var => exact .var h
-    case abs hi => 
+    case abs hi =>
       split at h <;> try contradiction
       case _ ht =>
         simp [pure] at h
@@ -256,11 +290,12 @@ theorem type_correct : (type ctx t = some ty) ↔ (ctx ⊢ t ⋮ ty) where
       case _ ty₁ ty₂ _ ty₁₁ _ ha =>
         specialize hi₁ h₁
         split at h <;> simp_all
-        exact .app hi₁ (hi₂ h₂)       
+        exact .app hi₁ (hi₂ h₂)
   mpr h := by
     induction h <;> simp [type]
     case var         => assumption
-    case abs hi      => rw [hi]; rfl
-    case app hi₁ hi₂ => simp [hi₁, hi₂]; exact if_pos rfl
+    case abs hi      => rw [hi]
+    case app hi₁ hi₂ => simp [hi₁, hi₂]
 
-      
+instance : Decidable (ctx ⊢ t ⋮ ty) :=
+  decidable_of_decidable_of_iff type_correct
