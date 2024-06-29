@@ -1,6 +1,9 @@
 inductive Ty where
   | arrow (ty₁ ty₂ : Ty)
+  | top
   deriving DecidableEq
+
+notation "⊤" => Ty.top
 
 inductive Term where
   | var (fvar : Nat)
@@ -59,6 +62,14 @@ def Term.subst (fvar : Nat) (s : Term) : Term → Term
 
 notation:max t₁ "[" x " ↦ " t₂ "]" => Term.subst x t₂ t₁
 
+inductive Subtypes : Ty → Ty → Prop
+  | refl  : Subtypes ty ty
+  | trans : Subtypes ty₁ ty₂ → Subtypes ty₂ ty₃ → Subtypes ty₁ ty₃
+  | top   : Subtypes ty ⊤
+  | arrow : Subtypes ty₁ ty₂ → Subtypes ty₃ ty₄ → Subtypes (.arrow ty₂ ty₃) (.arrow ty₁ ty₄)
+
+notation:max ty₁:60 " <: " ty₂:60 => Subtypes ty₁ ty₂
+
 inductive Eval : Term → Term → Prop
   | app₁ (t₂ : Term) : Eval t₁ t₁' → Eval (.app t₁ t₂) (.app t₁' t₂)
   | app₂ (v₁ : Value) : Eval t₂ t₂' → Eval (.app v₁ t₂) (.app v₁ t₂')
@@ -67,15 +78,30 @@ inductive Eval : Term → Term → Prop
 infixr:50 " ⇒ " => Eval 
 
 inductive Types : Ctx → Term → Ty → Prop
-  | var : (ctx x = some ty) → Types ctx (.var x) ty
+  | var : ctx x = some ty → Types ctx (.var x) ty
   | abs : Types (↥ctx)[0 ↦ ty₁] t ty₂ → Types ctx (.abs ty₁ t) (.arrow ty₁ ty₂)
   | app : Types ctx t₁ (.arrow ty₁ ty₂) → Types ctx t₂ ty₁ → Types ctx (.app t₁ t₂) ty₂
+  | sub : Types ctx t ty₁ → ty₁ <: ty₂ → Types ctx t ty₂
 
 notation ctx " ⊢ " t " ⋮ " ty => Types ctx t ty
 notation      "⊢ " t " ⋮ " ty => ∅ ⊢ t ⋮ ty
 
+theorem Subtypes.inversion_arrow (h : ty <: .arrow ty₁ ty₂) : 
+    ∃ ty₃ ty₄, (ty = .arrow ty₃ ty₄) ∧ (ty₃ <: ty₁) ∧ (ty₂ <: ty₄) := by
+  generalize h' : Ty.arrow ty₁ ty₂ = ty'
+  rw [h'] at h
+  induction h
+  case refl => exact ⟨ty₁, ty₂, h'.symm, .refl, .refl⟩
+  case trans => sorry
+  case top => contradiction
+  case arrow ty₂ ty₃ _ h₁ h₂ hi₁ hi₂ =>
+    injection h' with ht₁ ht₂
+    subst ht₁ ht₂
+    sorry
+
 theorem inversion_var : (ctx ⊢ .var x ⋮ ty) → ctx x = ty
   | .var h => h
+  | .sub ht hs => sorry
 
 theorem inversion_abs : 
     (ctx ⊢ .abs ty₁ t ⋮ ty) → ∃ ty₂, (ty = .arrow ty₁ ty₂) ∧ (↥ctx)[0 ↦ ty₁] ⊢ t ⋮ ty₂
